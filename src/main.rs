@@ -15,6 +15,7 @@ use std::{
 /*
     TO-DO list:
         Finish new() config
+        Make desired command not to trigger 'command not found'
 */
 
 fn main() -> io::Result<()> {
@@ -47,11 +48,10 @@ fn main() -> io::Result<()> {
                     .iter()
                     .any(|x| x.to_str().unwrap() == cfg_path)
                 {
-                    #[warn(unreachable_code)]
-                    if let Ok() = todo!() {
-                        // TODO load new config in the Ok()  with the todo!() corresponding cfg function,
-                        // then modify cfg to new cfg in here
-                    }
+                    // if let Ok() = todo!() {
+                    //     // TODO load new config in the Ok()  with the todo!() corresponding cfg function,
+                    //     // then modify cfg to new cfg in here
+                    // }
                 }
             }
             Err(e) => todo!(),
@@ -99,19 +99,40 @@ fn reload_config() -> Configuration {
     Configuration::new()
 }
 
-fn display_dym(command: &str) {
-    print!("[Fudge] Did you mean: {} ? Y/n", command);
+fn display_dym(cfg: Configuration, command: &str, args: Option<&str>) {
+    print!("[Fudge] Did you mean: `{}{}`? Y/n", command, format!(" {}", args.unwrap_or("")));
     let mut reply = String::new();
     io::stdin().read_line(&mut reply).unwrap();
-    if reply.is_empty() || reply.to_lowercase() == "y" {
-        fudge(command);
+    println!();
+    if reply == "\n" || reply.to_lowercase() == "y\n" {
+        fudge(cfg, command, args);
+    } else {
+        if reply.to_ascii_lowercase() == "n" {
+            print!("[Fudge] Cancelled.");
+            return;
+        }
+        print!("[Fudge] Unknown option. Cancelling...");
     }
 }
 
-fn fudge(cfg: Configuration, command: &str, args: &str) {
+fn fudge(cfg: Configuration, command: &str, args: Option<&str>) {
     Command::new(cfg.shell)
         .arg("-c")
-        .arg(format!("{} {}", command, args))
+        .arg(format!("{} {}", command, args.unwrap_or("")))
         .output()
-        .expect("Fudge could not access terminal history");
+        .expect("Command could not be executed in a shell");
+}
+
+
+#[cfg(test)]
+mod tests{
+    
+    use super::*;
+
+    #[test]
+    fn display_dym_input_required_test() {
+        let cfg = Configuration::default();
+        display_dym(cfg, "echo", Some("hello world!"));
+    }
+
 }

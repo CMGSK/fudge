@@ -2,10 +2,18 @@ use std::{fs::File, io::BufReader, process::Command};
 
 use serde::{Deserialize, Serialize};
 
-const FETCH_COMMANDS_FUNC: &str = "COMMANDS=`echo -n $PATH | xargs -d : -I {} find {} -maxdepth 1 \
-        -executable -type f -printf '%P\n'`
+const FETCH_COMMANDS_FUNC: &str = 
+    r#"COMMANDS=`echo -n $PATH | xargs -d :
+    -I {} find {} -maxdepth 1 \
+    -executable -type f -printf '%P\n'`
     ALIASES=`alias | cut -d '=' -f 1`
-    echo \"$COMMANDS\"$'\n'\"$ALIASES\" | sort -u\"";
+    echo "$COMMANDS"$'\n'"$ALIASES" | sort -u"#;
+
+
+
+    // "COMMANDS=`echo -n $PATH | xargs -d : -I {} find {} -maxdepth 1 \\ -executable -type f -printf '%P\\n'` 
+    // ALIASES=`alias | cut -d '=' -f 1` 
+    // echo \"$COMMANDS\"$'\\n'\"$ALIASES\" | sort -u";
 
 #[derive(Serialize, Deserialize)]
 pub struct Configuration {
@@ -91,7 +99,7 @@ impl Configuration {
 }
 
 fn get_term_command_list() -> Vec<String> {
-    if let Ok(output) = Command::new(FETCH_COMMANDS_FUNC).args(["-h"]).output() {
+    if let Ok(output) = Command::new("zsh").arg("-c").arg(FETCH_COMMANDS_FUNC).output() {
         if let Ok(s) = String::from_utf8(output.stdout) {
             return s
                 .split('\n')
