@@ -1,26 +1,37 @@
 mod algorithms;
 mod components;
 
-use components::{config::Configuration, interceptor::Interceptor};
+use components::config::Configuration;
 use notify::{Config, RecommendedWatcher, Watcher};
-use std::{fs::File, io::{self, BufRead, BufReader}, path::{Path, PathBuf}, sync::mpsc::channel, time::Duration};
+use std::{
+    fs::File, 
+    io::{self, BufRead, BufReader}, 
+    path::{Path, PathBuf}, 
+    process::Command, 
+    sync::mpsc::channel, 
+    time::Duration
+};
+
+/*
+    TO-DO list:
+        Finish new() config
+*/
 
 fn main() -> io::Result<()> {
+    let cfg_path = "$HOME/.config/fudge.conf";
     let mut cfg = Configuration::default();
 
     // Channel to receive filesystem events
     let (tx, rx) = channel();
-    let watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
+    let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
     let history_path = if std::path::Path::new("$HOME/.bash_history").is_file() {
         "$HOME/.bash_history"
     } else {
         "$HOME/.zsh_history"
     };
+
     watcher.watch(history_path.as_ref(), notify::RecursiveMode::NonRecursive);
-    watcher.watch(
-        "$HOME/.config/fudge".as_ref(),
-        notify::RecursiveMode::NonRecursive,
-    );
+    watcher.watch(cfg_path.as_ref(), notify::RecursiveMode::NonRecursive);
 
     let mut last_pos = get_file_size(&history_path)?;
 
@@ -31,14 +42,19 @@ fn main() -> io::Result<()> {
                     continue;
                 };
 
-                if event.paths.iter().any(|x| x.to_str().unwrap() == "$HOME/.config/fudge") {
-                    if let Ok(new_cfg) = Ok(cfg) { //TODO load new config here
-                        cfg = new_cfg;
-                    } 
+                if event
+                    .paths
+                    .iter()
+                    .any(|x| x.to_str().unwrap() == cfg_path)
+                {
+                    #[warn(unreachable_code)]
+                    if let Ok() = todo!() {
+                        // TODO load new config in the Ok()  with the todo!() corresponding cfg function,
+                        // then modify cfg to new cfg in here
+                    }
                 }
-
-            },
-            Err(e) => todo!()
+            }
+            Err(e) => todo!(),
         }
     }
 
@@ -62,7 +78,7 @@ fn get_file_size(path: &str) -> io::Result<u64> {
 fn get_last_command(path: &Path, leof: &mut u64) -> Result<String, ()> {
     let file = File::open(path).unwrap();
     let size = file.metadata().unwrap().len();
-    
+
     if size > *leof {
         let f = BufReader::new(file);
         if let Some(nc) = f.lines().last() {
@@ -73,25 +89,29 @@ fn get_last_command(path: &Path, leof: &mut u64) -> Result<String, ()> {
                 }
                 Err(_) => return Err(()),
             }
-        } 
+        }
         return Err(());
     }
     Err(())
 }
 
-fn display(command: &str) {
+fn reload_config() -> Configuration {
+    Configuration::new()
+}
+
+fn display_dym(command: &str) {
     print!("[Fudge] Did you mean: {} ? Y/n", command);
     let mut reply = String::new();
     io::stdin().read_line(&mut reply).unwrap();
     if reply.is_empty() || reply.to_lowercase() == "y" {
         fudge(command);
-    } 
+    }
 }
 
-fn fudge(command: &str) {
-        Command::new(shell)
-            .arg("-c")
-            .arg("history | tail -n 1")
-            .output()
-            .expect("Fudge could not access terminal history");
+fn fudge(cfg: Configuration, command: &str, args: &str) {
+    Command::new(cfg.shell)
+        .arg("-c")
+        .arg(format!("{} {}", command, args))
+        .output()
+        .expect("Fudge could not access terminal history");
 }

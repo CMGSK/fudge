@@ -33,7 +33,7 @@ impl Default for Configuration {
 }
 
 impl Configuration {
-    pub fn new(&mut self) -> Self {
+    pub fn new() -> Self {
         let cfg_file = match File::open("~/.config/fudge/fudge.conf") {
             Ok(f) => Some(f),
             Err(_) => None,
